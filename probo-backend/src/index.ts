@@ -5,8 +5,8 @@ import adminRouter from "./routers/admin";
 
 const app = express();
 
-app.use("/v1/admin", userRouter);
-app.use("/v1/user", adminRouter);
+app.use("/v1/user", userRouter);
+app.use("/v1/admin", adminRouter);
 
 app.use(express.json());
 app.use(cors());
