@@ -1,0 +1,68 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int           @id @default(autoincrement())
+  name        String
+  address     String
+  type        UserType
+  balance     Balance?
+  submissions Submissions[]
+  polls       Polls[]
+}
+
+model Balance {
+  id            Int  @id @default(autoincrement())
+  amount        Int  @default(0)
+  user_id       Int  @unique
+  user          User @relation(fields: [user_id], references: [id])
+  locked_amount Int
+}
+
+model Polls {
+  id           Int           @id @default(autoincrement())
+  title        String
+  user_id      Int
+  image        String?
+  poll_options PollsOption[]
+  submissions  Submissions[]
+  expiry       DateTime
+  outcome      String
+  user         User          @relation(fields: [user_id], references: [id])
+}
+
+model Submissions {
+  id        Int         @id @default(autoincrement())
+  user_id   Int
+  user      User        @relation(fields: [user_id], references: [id])
+  option_id Int
+  option    PollsOption @relation(fields: [option_id], references: [id])
+  poll_id   Int
+  poll      Polls       @relation(fields: [poll_id], references: [id])
+  amount    String
+}
+
+model PollsOption {
+  id          Int           @id @default(autoincrement())
+  title       String
+  poll_id     Int
+  poll        Polls         @relation(fields: [poll_id], references: [id])
+  submissions Submissions[]
+}
+
+enum UserType {
+  USER
+  ADMIN
+}
