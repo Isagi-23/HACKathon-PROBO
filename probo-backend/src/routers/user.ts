@@ -2,6 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "../configs";
+import { authMiddleware } from "../middlewares/userMiddleware";
+import { UserAuthenticatedRequest } from "../types";
 const router = Router();
 
 const prismaClient = new PrismaClient();
@@ -45,4 +47,10 @@ router.post("/signup", async (req, res) => {
     });
   }
 });
+
+router.get("/me", authMiddleware, (req: UserAuthenticatedRequest, res) => {
+  console.log("req", req.userId);
+  res.send("ok");
+});
+
 export default router;

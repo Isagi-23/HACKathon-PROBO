@@ -20,7 +20,15 @@ model User {
   type        UserType
   balance     Balance?
   submissions Submissions[]
-  polls       Polls[]
+}
+
+model Admin {
+  id       Int      @id @default(autoincrement())
+  name     String?
+  type     UserType
+  polls    Polls[]
+  email    String   @unique
+  password String
 }
 
 model Balance {
@@ -34,13 +42,13 @@ model Balance {
 model Polls {
   id           Int           @id @default(autoincrement())
   title        String
-  user_id      Int
+  admin_id     Int
   image        String?
   poll_options PollsOption[]
   submissions  Submissions[]
   expiry       DateTime
-  outcome      String
-  user         User          @relation(fields: [user_id], references: [id])
+  outcome      Json          
+  admin        Admin         @relation(fields: [admin_id], references: [id])
 }
 
 model Submissions {
