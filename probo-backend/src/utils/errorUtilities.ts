@@ -9,12 +9,12 @@ export function handleError(error: unknown, res: Response) {
       details: error.errors,
     });
   } else if (error instanceof Error) {
-    // Handle generic JavaScript errors
+    // Handle normal errors
     return res.status(500).json({
       message: error.message,
     });
   } else {
-    // Handle unexpected unknown errors
+    // Handle unexpected errors
     return res.status(500).json({
       message: "An unexpected error occurred",
     });

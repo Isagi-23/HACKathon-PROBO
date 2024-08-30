@@ -64,6 +64,9 @@ router.post(
           poll_options: {
             create: options.map((option) => ({
               title: option,
+              dynamic_price: 0.5,
+              initial_price: 0.5,
+              total_bets: 0,
             })),
           },
         },
@@ -82,7 +85,6 @@ router.patch(
   "/update-outcome",
   adminAuthMiddleware,
   async (req: AdminAuthenticatedRequest, res) => {
-    if (!req.adminId) return;
     const { pollId, pollOptionId } = req.body;
     try {
       const fetchOptions = await getPollOptions(pollId);
@@ -120,6 +122,16 @@ router.patch(
         data: {
           outcome: { type: "DECLARED", result: pollOptionId },
           expiry: new Date(), // make expiry to the date of now to check expiry afterwarsd
+          submissions: {
+            updateMany: {
+              where: {
+                option_id: pollOptionId,
+              },
+              data: {
+                isWinner: true,
+              },
+            },
+          },
         },
         include: {
           poll_options: true,
@@ -132,5 +144,74 @@ router.patch(
     }
   }
 );
+
+router.get("/transfer-balance/:pollId", adminAuthMiddleware, async (req, res) => {
+  const { pollId } = req.params;
+  try {
+    const payoutResults = await prismaClient.$transaction(async (prisma) => {
+      const poll = await prisma.polls.findUnique({
+        where: { id: parseInt(pollId) },
+        include: { poll_options: true, submissions: true },
+      });
+      if (!poll || !hasPollExpired(poll.expiry)) {
+        console.log(poll);
+        throw new Error("Poll has not expired yet or does not exist");
+      }
+      if(poll.balanceCalculated) {
+        res.json({message: "Balance already calculated"})
+        return
+      }
+
+      const totalBetsOnPoll = poll.total_bets;
+      const platformFee = 0.01;
+      const amountAvailableForPayout = totalBetsOnPoll * (1 - platformFee);
+      const pollOutcome = poll.outcome;
+      console.log(pollOutcome);
+      //@ts-ignore
+      const winningOptionId = pollOutcome?.result && pollOutcome.result;
+      const winningOption = poll.poll_options.find(
+        (option) => option.id === winningOptionId
+      );
+
+      if (!winningOption) {
+        throw new Error("Winning option not found");
+      }
+
+      const totalBetsOnWinningOption = winningOption.total_bets;
+
+      const userSubmissions = await prisma.submissions.findMany({
+        where: { poll_id: parseInt(pollId), option_id: winningOptionId },
+      });
+      const payouts = userSubmissions.map((submission) => {
+        const userBetAmount = submission.amount;
+        const payout =
+          (userBetAmount / totalBetsOnWinningOption) * amountAvailableForPayout;
+        return { userId: submission.user_id, payout };
+      });
+   
+      await Promise.all(
+        payouts.map(({ userId, payout }) =>
+          prisma.balance.updateMany({
+            where: { user_id: userId },
+            data: { amount: { increment: payout },pending_amount: { increment: payout } },
+          })
+        )
+      );
+
+      await prismaClient.polls.update({
+        where: { id: parseInt(pollId) },
+        data: {
+          balanceCalculated: true,
+        },
+      });
+
+      return payouts
+    });
+
+    return res.status(200).json(payoutResults);
+  } catch (error) {
+    return handleError(error, res);
+  }
+});
 
 export default router;

@@ -13,7 +13,7 @@ export function authMiddleware(
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload & {
       userId: number;
     };
-    console.log(decoded);
+   
     if (decoded.userId) {
       req.userId = decoded.userId;
       return next();

@@ -20,6 +20,7 @@ model User {
   type        UserType
   balance     Balance?
   submissions Submissions[]
+  payouts     Payout[]
 }
 
 model Admin {
@@ -32,23 +33,26 @@ model Admin {
 }
 
 model Balance {
-  id            Int  @id @default(autoincrement())
-  amount        Int  @default(0)
-  user_id       Int  @unique
-  user          User @relation(fields: [user_id], references: [id])
-  locked_amount Int
+  id             Int   @id @default(autoincrement())
+  amount         Float @default(0.0)
+  user_id        Int   @unique
+  user           User  @relation(fields: [user_id], references: [id])
+  locked_amount  Float @default(0.0)
+  pending_amount Float @default(0.0)
 }
 
 model Polls {
-  id           Int           @id @default(autoincrement())
-  title        String
-  admin_id     Int
-  image        String?
-  poll_options PollsOption[]
-  submissions  Submissions[]
-  expiry       DateTime
-  outcome      Json          
-  admin        Admin         @relation(fields: [admin_id], references: [id])
+  id                Int           @id @default(autoincrement())
+  title             String
+  admin_id          Int
+  image             String?
+  poll_options      PollsOption[]
+  submissions       Submissions[]
+  expiry            DateTime
+  balanceCalculated Boolean       @default(false)
+  outcome           Json
+  total_bets        Float         @default(0)
+  admin             Admin         @relation(fields: [admin_id], references: [id])
 }
 
 model Submissions {
@@ -59,18 +63,39 @@ model Submissions {
   option    PollsOption @relation(fields: [option_id], references: [id])
   poll_id   Int
   poll      Polls       @relation(fields: [poll_id], references: [id])
-  amount    String
+  amount    Float
+  createdAt DateTime    @default(now())
+  isWinner  Boolean     @default(false)
+  //add uniques constraints on user_id and poll_id
 }
 
 model PollsOption {
-  id          Int           @id @default(autoincrement())
-  title       String
-  poll_id     Int
-  poll        Polls         @relation(fields: [poll_id], references: [id])
-  submissions Submissions[]
+  id            Int           @id @default(autoincrement())
+  title         String
+  poll_id       Int
+  poll          Polls         @relation(fields: [poll_id], references: [id])
+  submissions   Submissions[]
+  dynamic_price Float         @default(0.5) // Initial price or dynamically adjusted price
+  total_bets    Float         @default(0) // Total amount of bets on this option
+  initial_price Float         @default(0.5) // Initial price for the option
+}
+
+model Payout {
+  id        Int          @id @default(autoincrement())
+  userId    Int
+  user      User         @relation(fields: [userId], references: [id])
+  amount    Int
+  status    PayoutStatus
+  signature String
 }
 
 enum UserType {
   USER
   ADMIN
+}
+
+enum PayoutStatus {
+  PENDING
+  COMPLETED
+  FAILED
 }
