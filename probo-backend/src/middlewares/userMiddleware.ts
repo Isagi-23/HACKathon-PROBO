@@ -12,10 +12,11 @@ export function authMiddleware(
     const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload & {
       userId: number;
+      address: string;
     };
-   
     if (decoded.userId) {
       req.userId = decoded.userId;
+      req.address = decoded.address;
       return next();
     } else {
       return res.status(403).json({

@@ -7,10 +7,13 @@ import { UserAuthenticatedRequest } from "../types";
 import { handleError } from "../utils/errorUtilities";
 import { hasPollExpired } from "../utils/pollUtils";
 import nacl from "tweetnacl";
-import { PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
+import { verifySignatureFromTransaction } from "../utils/verifyTransaction";
 const router = Router();
 
 const prismaClient = new PrismaClient();
+const connection = new Connection("https://api.devnet.solana.com");
+const PARENTWALLET = "354S9X6YfMkEeLnhSz7ZdeXiNNQNF1kmg4BxDymJuSU2";
 
 router.post("/signup", async (req, res) => {
   //zod validation
@@ -34,6 +37,7 @@ router.post("/signup", async (req, res) => {
     const token = jwt.sign(
       {
         userId: existingUser.id,
+        address: existingUser.address,
       },
       JWT_SECRET
     );
@@ -57,6 +61,7 @@ router.post("/signup", async (req, res) => {
     const token = jwt.sign(
       {
         userId: user.id,
+        address: user.address,
       },
       JWT_SECRET
     );
@@ -71,9 +76,23 @@ router.post(
   "/vote",
   authMiddleware,
   async (req: UserAuthenticatedRequest, res) => {
-    if (!req.userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.userId && !req.address)
+      return res.status(401).json({ message: "Unauthorized" });
+    console.log("first", connection);
+    const { pollId, optionId, amount, signature } = req.body;
+    console.log(signature);
+    const transaction = await connection.getTransaction(signature, {
+      commitment: "confirmed",
+      maxSupportedTransactionVersion: 1,
+    });
 
-    const { pollId, optionId, amount } = req.body;
+    console.log(transaction,req.address);
+    const transactionVerified = await verifySignatureFromTransaction(
+      transaction,
+      new PublicKey(PARENTWALLET),
+      req.address!
+    );
+    console.log(transactionVerified);
 
     try {
       await prismaClient.$transaction(async (prisma) => {
@@ -145,12 +164,6 @@ router.post(
         const newPrice =
           pollOption.dynamic_price +
           (parseFloat(amount) / totalBetsOnPoll) * priceAdjustmentFactor;
-
-        console.log(
-          newPrice + " " + parseFloat(amount) + "newPRice",
-          updatedPoll.total_bets
-        );
-
         await prisma.pollsOption.update({
           where: { id: optionId },
           data: { dynamic_price: newPrice, total_bets: totalBetsOnOption },
@@ -213,29 +226,40 @@ router.post(
   }
 );
 
-router.get("/all-polls", async (req, res) => {
-  const polls = await prismaClient.polls.findMany({
-    include: {
-      poll_options: true,
-      _count: { select: { submissions: true } },
-    },
-  });
-  const pollsResponse = polls.map((poll) => {
-    return {
-      id: poll.id,
-      title: poll.title,
-      image: poll.image,
-      expiry: poll.expiry,
-      outcome: poll.outcome,
-      totalVotes: poll._count.submissions,
-      options: poll.poll_options.map((option) => ({
-        title: option.title,
-        id: option.id,
-        prob: option.dynamic_price,
-      })),
-    };
-  });
-  res.json(pollsResponse);
-});
+router.get(
+  "/all-polls",
+  authMiddleware,
+  async (req: UserAuthenticatedRequest, res) => {
+    if (!req.userId) return;
+    const polls = await prismaClient.polls.findMany({
+      include: {
+        poll_options: true,
+        submissions: {
+          where: {
+            user_id: req.userId,
+          },
+        },
+        _count: { select: { submissions: true } },
+      },
+    });
+    const pollsResponse = polls.map((poll) => {
+      return {
+        id: poll.id,
+        title: poll.title,
+        image: poll.image,
+        expiry: poll.expiry,
+        outcome: poll.outcome,
+        totalVotes: poll._count.submissions,
+        options: poll.poll_options.map((option) => ({
+          title: option.title,
+          id: option.id,
+          prob: option.dynamic_price,
+        })),
+        submissions: poll.submissions,
+      };
+    });
+    res.json(pollsResponse);
+  }
+);
 
 export default router;

@@ -2,6 +2,7 @@ import { Request } from "express";
 import { z } from "zod";
 export interface UserAuthenticatedRequest extends Request {
   userId?: number;
+  address?:string
 }
 
 export interface AdminAuthenticatedRequest extends Request {
