@@ -158,7 +158,7 @@ router.get("/transfer-balance/:pollId", adminAuthMiddleware, async (req, res) =>
         throw new Error("Poll has not expired yet or does not exist");
       }
       if(poll.balanceCalculated) {
-        res.json({message: "Balance already calculated"})
+        res.json({message: "Balance already calculated for Users"})
         return
       }
 
@@ -174,7 +174,7 @@ router.get("/transfer-balance/:pollId", adminAuthMiddleware, async (req, res) =>
       );
 
       if (!winningOption) {
-        throw new Error("Winning option not found");
+        throw new Error("Winning option does not exist for this poll");
       }
 
       const totalBetsOnWinningOption = winningOption.total_bets;

@@ -7,8 +7,21 @@ import { UserAuthenticatedRequest } from "../types";
 import { handleError } from "../utils/errorUtilities";
 import { hasPollExpired } from "../utils/pollUtils";
 import nacl from "tweetnacl";
-import { Connection, PublicKey } from "@solana/web3.js";
+import {
+  Connection,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  RpcResponseAndContext,
+  sendAndConfirmTransaction,
+  SignatureResult,
+  SystemProgram,
+  Transaction,
+  TransactionConfirmationStrategy,
+} from "@solana/web3.js";
 import { verifySignatureFromTransaction } from "../utils/verifyTransaction";
+import bs58 from "bs58";
+
 const router = Router();
 
 const prismaClient = new PrismaClient();
@@ -25,12 +38,13 @@ router.post("/signup", async (req, res) => {
     new Uint8Array(signature.data),
     new PublicKey(address).toBytes()
   );
-  if (!verify) {
-    return res.status(401).send("Invalid signature");
-  }
+
   const existingUser = await prismaClient.user.findFirst({
     where: {
       address: address,
+    },
+    include: {
+      balance: true,
     },
   });
   if (existingUser) {
@@ -41,11 +55,16 @@ router.post("/signup", async (req, res) => {
       },
       JWT_SECRET
     );
-
     res.json({
       token,
+      totalEarned: existingUser?.balance?.amount ?? 0 / 1000_000_000,
+      totalWallet: existingUser?.balance?.pending_amount ?? 0 / 1000_000_000,
+      totalWithrawing: existingUser?.balance?.locked_amount ?? 0 / 1000_000_000,
     });
   } else {
+    if (!verify) {
+      return res.status(401).send("Invalid signature");
+    }
     const user = await prismaClient.user.create({
       data: {
         address: address,
@@ -86,7 +105,7 @@ router.post(
       maxSupportedTransactionVersion: 1,
     });
 
-    console.log(transaction,req.address);
+    console.log(transaction, req.address);
     const transactionVerified = await verifySignatureFromTransaction(
       transaction,
       new PublicKey(PARENTWALLET),
@@ -183,46 +202,137 @@ router.post(
   authMiddleware,
   async (req: UserAuthenticatedRequest, res) => {
     const userId = req.userId;
-    if (!userId) return;
-    const user = await prismaClient.user.findUnique({
-      where: {
-        id: userId,
-      },
-    });
-    if (!user) return;
+    if (!userId) {
+      return res.status(400).json({ error: "User ID not found" });
+    }
 
-    const address = user.address;
-    const txnId = "123213123";
-
-    await prismaClient.$transaction(async (prisma) => {
-      const userBalance = await prisma.balance.findUnique({
-        where: { user_id: userId },
+    try {
+      const user = await prismaClient.user.findUnique({
+        where: { id: userId },
+        include: { balance: true },
       });
-      if (userBalance && userBalance.pending_amount > 0) {
-        await prisma.balance.update({
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { address, balance } = user;
+      if (!address) {
+        return res.status(400).json({ error: "User address not found" });
+      }
+
+      // Validate Solana address
+      let recipientPubKey;
+      try {
+        recipientPubKey = new PublicKey(address);
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid Solana address" });
+      }
+
+      const payoutAmount = balance?.pending_amount ?? 0;
+      if (payoutAmount <= 0) {
+        return res
+          .status(400)
+          .json({ error: "Insufficient pending amount for payout" });
+      }
+
+      const lamportsToSend = payoutAmount;
+
+      // Check parent wallet balance
+      const parentBalance = await connection.getBalance(
+        new PublicKey(PARENTWALLET)
+      );
+      const estimatedFee = 5000; // Example fee estimate; adjust as needed
+      if (parentBalance < lamportsToSend + estimatedFee) {
+        return res
+          .status(500)
+          .json({ error: "Insufficient funds in the parent wallet" });
+      }
+
+      // Create transaction
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: new PublicKey(PARENTWALLET),
+          toPubkey: recipientPubKey,
+          lamports: lamportsToSend,
+        })
+      );
+
+      // Load keypair securely
+      const secretKey = process.env.SOLANA_SECRET_KEY!;
+      if (!secretKey) {
+        return res.status(500).json({ message: "Server misconfiguration" });
+      }
+
+      const keypair = Keypair.fromSecretKey(bs58.decode(secretKey));
+
+      // Send transaction with 'finalized' commitment
+      const signature = await sendAndConfirmTransaction(
+        connection,
+        transaction,
+        [keypair],
+        { commitment: "finalized" }
+      );
+
+      // Update database within a transaction
+      const payoutId = await prismaClient.$transaction(async (prisma) => {
+        await prisma.$executeRawUnsafe(
+          `SELECT * FROM "Balance" WHERE user_id = $1 FOR UPDATE`,
+          userId
+        );
+        const currentBalance = await prisma.balance.findUnique({
+          where: { user_id: userId },
+        });
+
+        if (!currentBalance || currentBalance.pending_amount < payoutAmount) {
+          throw new Error(
+            "Insufficient pending amount during payout processing"
+          );
+        }
+
+        const updatedBalance = await prisma.balance.update({
           where: { user_id: userId },
           data: {
-            pending_amount: {
-              decrement: userBalance.pending_amount,
-            },
-            locked_amount: {
-              increment: userBalance.pending_amount,
-            },
+            pending_amount: { decrement: payoutAmount },
+            locked_amount: { increment: payoutAmount },
           },
         });
-        await prisma.payout.create({
+
+        if (!updatedBalance) {
+          throw new Error("Failed to update balance during payout processing");
+        }
+
+        const payout = await prisma.payout.create({
           data: {
             userId: userId,
-            amount: userBalance.pending_amount,
-            status: "PENDING",
-            signature: txnId,
+            amount: payoutAmount,
+            status: "COMPLETED", // Already confirmed
+            signature: signature,
           },
         });
-      }
-      //web 3 stuff
 
-      res.json({ message: "processing", amount: userBalance?.pending_amount });
-    });
+        if (!payout) {
+          throw new Error("Failed to create payout record");
+        }
+        return payout.id;
+      });
+
+      return res.json({
+        message: "Success",
+        amount: payoutAmount,
+        payoutId: payoutId,
+        signature: signature,
+      });
+    } catch (error: any) {
+      console.error("Error processing payout:", error);
+      // Handle specific errors if possible
+      if (error.message.includes("Insufficient pending amount")) {
+        return res
+          .status(400)
+          .json({ error: "Insufficient pending amount for payout" });
+      }
+      return res.status(500).json({ error: "Internal server error" });
+    }
   }
 );
 
@@ -259,6 +369,25 @@ router.get(
       };
     });
     res.json(pollsResponse);
+  }
+);
+
+router.get(
+  "/wallet-data",
+  authMiddleware,
+  async (req: UserAuthenticatedRequest, res) => {
+    if (!req.userId) return;
+    const balance = await prismaClient.balance.findUnique({
+      where: {
+        user_id: req.userId,
+      },
+    });
+    const walletBalance = {
+      totalEarned: (balance?.amount ?? 0) / 1000_000_000,
+      totalWallet: (balance?.pending_amount ?? 0) / 1000_000_000,
+      totalWithrawing: (balance?.locked_amount ?? 0) / 1000_000_000,
+    };
+    res.json(walletBalance);
   }
 );
 

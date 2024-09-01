@@ -25,7 +25,7 @@ export function authMiddleware(
     }
   } catch (error) {
     return res.status(403).json({
-      message: "Invalid token",
+      message: "Invalid token or You are not logged in",
     });
   }
 }
