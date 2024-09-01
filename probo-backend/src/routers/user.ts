@@ -6,14 +6,25 @@ import { authMiddleware } from "../middlewares/userMiddleware";
 import { UserAuthenticatedRequest } from "../types";
 import { handleError } from "../utils/errorUtilities";
 import { hasPollExpired } from "../utils/pollUtils";
+import nacl from "tweetnacl";
+import { PublicKey } from "@solana/web3.js";
 const router = Router();
 
 const prismaClient = new PrismaClient();
 
 router.post("/signup", async (req, res) => {
-  //add sign verfication here
-  const { address } = req.body;
-  // const hardcodedAddress = "23ecgUK3qxN57sjoqp89E6Co7S8GPaq4wDkKugyinJwd";
+  //zod validation
+  const { address, signature } = req.body;
+  const message = process.env.MESSAGE ?? "";
+  const encodedMessage = new TextEncoder().encode(message);
+  const verify = nacl.sign.detached.verify(
+    encodedMessage,
+    new Uint8Array(signature.data),
+    new PublicKey(address).toBytes()
+  );
+  if (!verify) {
+    return res.status(401).send("Invalid signature");
+  }
   const existingUser = await prismaClient.user.findFirst({
     where: {
       address: address,
@@ -54,10 +65,6 @@ router.post("/signup", async (req, res) => {
       token,
     });
   }
-});
-
-router.get("/me", authMiddleware, (req: UserAuthenticatedRequest, res) => {
-  res.send("ok");
 });
 
 router.post(
@@ -172,7 +179,7 @@ router.post(
     if (!user) return;
 
     const address = user.address;
-    const txnId="123213123"
+    const txnId = "123213123";
 
     await prismaClient.$transaction(async (prisma) => {
       const userBalance = await prisma.balance.findUnique({
@@ -186,24 +193,49 @@ router.post(
               decrement: userBalance.pending_amount,
             },
             locked_amount: {
-              increment:userBalance.pending_amount
+              increment: userBalance.pending_amount,
             },
           },
         });
         await prisma.payout.create({
-          data:{
+          data: {
             userId: userId,
             amount: userBalance.pending_amount,
             status: "PENDING",
-            signature: txnId
-          }
-        })
+            signature: txnId,
+          },
+        });
       }
-      //web 3 stuff 
+      //web 3 stuff
 
-      res.json({message:"processing",amount:userBalance?.pending_amount})
+      res.json({ message: "processing", amount: userBalance?.pending_amount });
     });
   }
 );
+
+router.get("/all-polls", async (req, res) => {
+  const polls = await prismaClient.polls.findMany({
+    include: {
+      poll_options: true,
+      _count: { select: { submissions: true } },
+    },
+  });
+  const pollsResponse = polls.map((poll) => {
+    return {
+      id: poll.id,
+      title: poll.title,
+      image: poll.image,
+      expiry: poll.expiry,
+      outcome: poll.outcome,
+      totalVotes: poll._count.submissions,
+      options: poll.poll_options.map((option) => ({
+        title: option.title,
+        id: option.id,
+        prob: option.dynamic_price,
+      })),
+    };
+  });
+  res.json(pollsResponse);
+});
 
 export default router;

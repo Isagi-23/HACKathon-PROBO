@@ -12,6 +12,8 @@ import {
   WalletMultiButton,
 } from "@solana/wallet-adapter-react-ui";
 import { clusterApiUrl } from "@solana/web3.js";
+import "@solana/wallet-adapter-react-ui/styles.css";
+import { Toaster } from "@/components/ui/toaster";
 
 const Wallet = ({ children }: { children: React.ReactNode }) => {
   const network = WalletAdapterNetwork.Devnet;

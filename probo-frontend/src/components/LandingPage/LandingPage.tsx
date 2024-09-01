@@ -1,44 +1,12 @@
-"use client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { WalletDisconnectButton } from "@solana/wallet-adapter-react-ui";
 import { Wallet, TrendingUp, Shield, Coins, WalletMinimal } from "lucide-react";
 import Link from "next/link";
+import WalletAnimation from "./WalletAnimation";
 
 export default function Component() {
-  const { publicKey, sendTransaction } = useWallet();
-  console.log(publicKey);
-
   return (
     <div className="flex flex-col min-h-screen">
-      <WalletDisconnectButton />
-      <header className="px-4 lg:px-6 h-14 flex items-center">
-        <Link className="flex items-center justify-center" href="#">
-          <TrendingUp className="h-6 w-6 text-primary" />
-          <span className="ml-2 text-2xl font-bold text-primary">OpinionX</span>
-        </Link>
-        <nav className="ml-auto flex gap-4 sm:gap-6">
-          <Link
-            className="text-sm font-medium hover:underline underline-offset-4"
-            href="#"
-          >
-            Features
-          </Link>
-          <Link
-            className="text-sm font-medium hover:underline underline-offset-4"
-            href="#"
-          >
-            How It Works
-          </Link>
-          <Link
-            className="text-sm font-medium hover:underline underline-offset-4"
-            href="#"
-          >
-            About
-          </Link>
-        </nav>
-      </header>
       <main className="flex-1">
         <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-r from-primary/10 via-primary/5 to-background">
           <div className="container px-4 md:px-6">
@@ -53,14 +21,14 @@ export default function Component() {
                   outcomes.
                 </p>
               </div>
-              <div className="space-x-4">
-                <Button>Get Started</Button>
-                <Button variant="outline">Learn More</Button>
-              </div>
+              <WalletAnimation />
             </div>
           </div>
         </section>
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-muted">
+        <section
+          className="w-full py-12 md:py-24 lg:py-32 bg-muted"
+          id="features"
+        >
           <div className="container px-4 md:px-6">
             <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl text-center mb-12">
               Key Features
@@ -93,7 +61,7 @@ export default function Component() {
             </div>
           </div>
         </section>
-        <section className="w-full py-12 md:py-24 lg:py-32">
+        <section className="w-full py-12 md:py-24 lg:py-32" id="how-it-works">
           <div className="container px-4 md:px-6">
             <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl text-center mb-12">
               How It Works
@@ -130,7 +98,10 @@ export default function Component() {
             </div>
           </div>
         </section>
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-muted">
+        <section
+          className="w-full py-12 md:py-24 lg:py-32 bg-muted"
+          id="signup"
+        >
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center space-y-4 text-center">
               <div className="space-y-2">
@@ -141,6 +112,7 @@ export default function Component() {
                   Join OpinionX today and start turning your insights into
                   profits.
                 </p>
+                <p>Stay informed on poll results and winnings.</p>
               </div>
               <div className="w-full max-w-sm space-y-2">
                 <form className="flex space-x-2">
@@ -149,7 +121,7 @@ export default function Component() {
                     placeholder="Enter your email"
                     type="email"
                   />
-                  <Button type="submit">Sign Up</Button>
+                  <Button type="submit">Subscribe</Button>
                 </form>
                 <p className="text-xs text-muted-foreground">
                   By signing up, you agree to our{" "}
