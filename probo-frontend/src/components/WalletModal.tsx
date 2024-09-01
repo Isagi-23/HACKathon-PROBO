@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +17,9 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import useMutate from "@/lib/helperHooks.ts/useMutate";
+import useQuery from "@/lib/helperHooks.ts/useQuery";
+import { initiatePayoutUser } from "@/services/polls";
 
 interface WalletData {
   totalInWallet: number;
@@ -27,42 +30,34 @@ interface WalletData {
 export default function WalletModal({
   isOpen,
   onClose,
+  walletInfo,
+  token,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  walletInfo: any;
+  token: string;
 }) {
-  const [walletData, setWalletData] = useState<WalletData>({
-    totalInWallet: 10.25,
-    withdrawalAmount: 1.5,
-    totalEarnings: 25.75,
-  });
-  const [isLoading, setIsLoading] = useState(false);
+  console.log(walletInfo);
+  const [walletData, setWalletData] = useState<WalletData>(walletInfo);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [withdrawalComplete, setWithdrawalComplete] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  console.log(walletData);
+  const {
+    mutate: initiatePayout,
+    isLoading,
+    error,
+  } = useMutate(initiatePayoutUser, {
+    onSuccess: (data) => {
+      console.log(data);
+    },
+  });
   const handleWithdraw = async () => {
-    setIsWithdrawing(true);
-    setError(null);
-    try {
-      // Simulating API call
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      // Update wallet data after successful withdrawal
-      setWalletData((prevData) => ({
-        ...prevData,
-        totalInWallet: prevData.totalInWallet - prevData.withdrawalAmount,
-        withdrawalAmount: 0,
-      }));
-      setWithdrawalComplete(true);
-      setTimeout(() => {
-        setIsWithdrawing(false);
-        setWithdrawalComplete(false);
-      }, 2000);
-    } catch (err) {
-      setError("Failed to withdraw SOL. Please try again.");
-      setIsWithdrawing(false);
-    }
+    await initiatePayout({});
   };
+  useEffect(() => {
+    setWalletData(walletInfo);
+  }, [walletInfo]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -77,37 +72,32 @@ export default function WalletModal({
           <div className="flex justify-center items-center h-32">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
-        ) : error ? (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
         ) : (
           <div className="space-y-4">
             {!isWithdrawing && (
               <>
                 <Card className="border-blue-500">
-                  <CardContent className="pt-4 flex items-center">
-                    <Wallet className="h-5 w-5 text-blue-500 mr-2" />
+                  <CardContent className="pt-4 flex items-center p-2">
+                    <Wallet className="h-8 w-8 text-blue-500 mr-2" />
                     <div>
                       <div className="text-sm font-medium text-blue-700">
                         Total in Wallet
                       </div>
                       <div className="text-2xl font-bold text-blue-600">
-                        {walletData.totalInWallet.toFixed(2)} SOL
+                        {walletData.totalInWallet} SOL
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="border-purple-500">
-                  <CardContent className="pt-4 flex items-center">
-                    <PiggyBank className="h-5 w-5 text-purple-500 mr-2" />
+                <Card className="border-purple-500 ">
+                  <CardContent className="pt-4 flex items-center p-2">
+                    <PiggyBank className="h-8 w-8 text-purple-500 mr-2" />
                     <div>
                       <div className="text-sm font-medium text-purple-700">
                         Total Earnings
                       </div>
                       <div className="text-2xl font-bold text-purple-600">
-                        {walletData.totalEarnings.toFixed(2)} SOL
+                        {walletData?.totalEarnings} SOL
                       </div>
                     </div>
                   </CardContent>
@@ -129,7 +119,7 @@ export default function WalletModal({
                         : "Withdrawal Amount"}
                     </div>
                     <div className="text-2xl font-bold text-green-600">
-                      {walletData.withdrawalAmount.toFixed(2)} SOL
+                      {walletData?.totalInWallet} SOL
                     </div>
                   </div>
                 </CardContent>

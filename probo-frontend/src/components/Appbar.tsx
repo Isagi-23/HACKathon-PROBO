@@ -12,11 +12,18 @@ import WalletButton from "./WalletButtons";
 import { Button } from "./ui/button";
 import WalletModal from "./WalletModal";
 import { AvatarIcon } from "@radix-ui/react-icons";
+import useQuery from "@/lib/helperHooks.ts/useQuery";
+import { fetchWalletData } from "@/services/polls";
 
 const Appbar = () => {
   const { publicKey, signMessage } = useWallet();
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [token, setToken] = useState("");
+  const [walletData, setWalletData] = useState({
+    totalInWallet: 0,
+    withdrawalAmount: 0,
+    totalEarnings: 0,
+  });
 
   async function signAndSend() {
     if (!publicKey || !signMessage || !window) {
@@ -38,7 +45,20 @@ const Appbar = () => {
 
     localStorage.setItem("token", response.data.token);
     setToken(response.data.token);
+    setWalletData(response.data);
   }
+  console.log(walletData);
+  const { refetch } = useQuery(fetchWalletData, {
+    onSuccess: (data) => {
+      const fetchedData = {
+        totalInWallet: data?.data.totalWallet,
+        withdrawalAmount: data?.data.totalWithrawing,
+        totalEarnings: data?.data.totalEarned,
+      };
+      setWalletData(fetchedData);
+    },
+    enabled: !!token,
+  });
 
   useEffect(() => {
     signAndSend();
@@ -85,17 +105,24 @@ const Appbar = () => {
       <div className="ml-auto flex gap-2">
         {token && (
           <div className="flex justify-center items-center  ">
-            <Button onClick={() => setIsWalletModalOpen(true)}>
+            <Button
+              onClick={() => {
+                refetch();
+                setIsWalletModalOpen(true);
+              }}
+            >
               <HandCoins className="mr-2 h-4 w-4" />
               Open Wallet
             </Button>
             <WalletModal
               isOpen={isWalletModalOpen}
               onClose={() => setIsWalletModalOpen(false)}
+              walletInfo={walletData}
+              token={token}
             />
           </div>
         )}
-        <WalletButton publicKey={publicKey?.toString()} setToken={setToken}/>
+        <WalletButton publicKey={publicKey?.toString()} setToken={setToken} />
       </div>
     </header>
   );

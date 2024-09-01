@@ -41,6 +41,7 @@ const useMutate = <T, P = any>(
       return res;
     } catch (err: any) {
       setIsError(true);
+      console.log(err)
       if (showToast) {
         toast({
           title:

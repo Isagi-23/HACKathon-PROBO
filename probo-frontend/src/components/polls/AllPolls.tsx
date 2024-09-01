@@ -77,6 +77,7 @@ export default function AllPolls() {
         <TabsList className="mb-2">
           <TabsTrigger value="trending">Trending</TabsTrigger>
           <TabsTrigger value="expiring">Expiring soon</TabsTrigger>
+          <TabsTrigger value="results">Declared</TabsTrigger>
         </TabsList>
         <TabsContent value="trending" className="space-y-4">
           {isLoading ? (
@@ -104,8 +105,14 @@ export default function AllPolls() {
         <TabsContent value="expiring">
           <div className="flex flex-col items-center justify-center">
             <p>WILL BE ADDING SOON ....</p>
-            <SmileIcon className="w-16 h-16" />
+            <SmileIcon className="w-16 h-16" color="#F59E0B" />
           </div>
+        </TabsContent>
+        <TabsContent value="results">
+          WILL BE ADDING SOON ....
+          <br /> Meanwhile check your{" "}
+          <span className="font-bold ">Profile Wallet</span> to see your
+          results.
         </TabsContent>
       </Tabs>
     </div>

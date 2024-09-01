@@ -16,6 +16,12 @@ import { useToast } from "@/hooks/use-toast";
 import { ReloadIcon } from "@radix-ui/react-icons";
 import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import {
+  Tooltip,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@radix-ui/react-tooltip";
+import { TooltipContent } from "./ui/tooltip";
 
 interface PollCardProps {
   expiresIn: string;
@@ -143,7 +149,7 @@ export const PollCard: React.FC<PollCardProps> = ({
             <img
               src={icon}
               alt="Poll Icon"
-              className="rounded-full w-12 h-12"
+              className="rounded-full w-16 h-16"
             />
           </div>
           <div>
@@ -151,9 +157,18 @@ export const PollCard: React.FC<PollCardProps> = ({
             <p className="text-sm text-muted-foreground">{subtitle}</p>
           </div>
         </div>
-        <div className="flex items-center space-x-2 text-sm">
-          <Info size={16} />
-          <Button variant="link" className="p-0 h-auto" onClick={onReadMore}>
+        <div className="flex items-center space-x-1 text-sm">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info size={16} className="cursor-pointer" />
+              </TooltipTrigger>
+              <TooltipContent side="top" align="center">
+                <p>this is general info regarding indicator</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <Button variant="link" className="p-0 h-auto text-sm text-gray-400" onClick={onReadMore}>
             Read more
           </Button>
         </div>
