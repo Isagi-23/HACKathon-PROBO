@@ -1,13 +1,16 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { PollCard } from "@/components/PollCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import useQuery from "@/lib/helperHooks.ts/useQuery";
 import { fetchAllPolls } from "@/services/polls";
+import { Button } from "../ui/button";
+import { SmileIcon } from "lucide-react";
+import PollLoader from "./PollLoader";
 
 export default function AllPolls() {
   const [allPolls, setAllPolls] = useState([]);
-  const { data } = useQuery(fetchAllPolls, {
+  const { data, refetch, isLoading } = useQuery(fetchAllPolls, {
     onSuccess: (data: any) => {
       const mappedPolls = data?.data?.map((poll: any) => ({
         id: poll.id,
@@ -19,11 +22,11 @@ export default function AllPolls() {
         yesValue: calculateYesValue(poll.options),
         noValue: calculateNoValue(poll.options),
         options: poll.options,
+        voteAllowed: poll.submissions?.length > 0 ? false : true,
       }));
       setAllPolls(mappedPolls);
     },
   });
-  console.log(allPolls);
   const calculateExpiresIn = (expiry: string) => {
     const expiryDate = new Date(expiry);
     const now = new Date();
@@ -58,37 +61,51 @@ export default function AllPolls() {
     const noOption = options.find((option) => option.title === "No");
     return noOption ? noOption.prob : 0.5; // Customize calculation as needed
   };
+  useEffect(() => {
+    refetch();
+  }, []);
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-2">All events</h1>
+    <div className="min-w-full md:min-w-[900px]">
+      <div className="flex flex-row items-center justify-between mb-4 space-x-4">
+        <h1 className="text-2xl font-bold mb-2">All events</h1>
+        <Button variant="default" onClick={() => refetch()}>
+          Refresh
+        </Button>
+      </div>
       <Tabs defaultValue="trending">
         <TabsList className="mb-2">
           <TabsTrigger value="trending">Trending</TabsTrigger>
           <TabsTrigger value="expiring">Expiring soon</TabsTrigger>
         </TabsList>
         <TabsContent value="trending" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {allPolls.map((poll: any, index) => (
-              <PollCard
-                key={poll.id}
-                pollId={poll.id}
-                expiresIn={poll.expiresIn}
-                icon={poll.icon}
-                title={poll.title}
-                subtitle={poll.subtitle}
-                yesValue={poll.yesValue}
-                noValue={poll.noValue}
-                options={poll.options}
-                onReadMore={() =>
-                  console.log(`Read more clicked for poll ${index}`)
-                }
-              />
-            ))}
-          </div>
+          {isLoading ? (
+            <PollLoader count={4} width="w-full" />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {allPolls.map((poll: any, index) => (
+                <PollCard
+                  key={poll.id}
+                  pollId={poll.id}
+                  expiresIn={poll.expiresIn}
+                  icon={poll.icon}
+                  title={poll.title}
+                  subtitle={poll.subtitle}
+                  options={poll.options}
+                  onReadMore={() =>
+                    console.log(`Read more clicked for poll ${index}`)
+                  }
+                  voteAllowed={poll.voteAllowed}
+                />
+              ))}
+            </div>
+          )}
         </TabsContent>
         <TabsContent value="expiring">
-          {/* Add content for expiring soon tab */}
+          <div className="flex flex-col items-center justify-center">
+            <p>WILL BE ADDING SOON ....</p>
+            <SmileIcon className="w-16 h-16" />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

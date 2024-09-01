@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Card,
   CardContent,
@@ -14,6 +14,8 @@ import useMutate from "@/lib/helperHooks.ts/useMutate";
 import { vote } from "@/services/polls";
 import { useToast } from "@/hooks/use-toast";
 import { ReloadIcon } from "@radix-ui/react-icons";
+import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 
 interface PollCardProps {
   expiresIn: string;
@@ -23,6 +25,7 @@ interface PollCardProps {
   options: any[];
   onReadMore: () => void;
   pollId: number;
+  voteAllowed: boolean;
 }
 
 export const PollCard: React.FC<PollCardProps> = ({
@@ -33,13 +36,16 @@ export const PollCard: React.FC<PollCardProps> = ({
   onReadMore,
   options,
   pollId,
+  voteAllowed,
 }) => {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [amount, setAmount] = useState<string>("");
   const { toast } = useToast();
+  const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
+  const [tnxSignature, setTnxSignature] = useState<string>("");
   const { mutate: submitBet, isLoading } = useMutate(vote, {
     onSuccess: (data: any) => {
-      console.log(data);
       toast({
         title: data?.data?.message,
         variant: "default",
@@ -61,15 +67,62 @@ export const PollCard: React.FC<PollCardProps> = ({
     },
   });
 
+  const makePayment = useCallback(
+    async (amount: number) => {
+      if (!publicKey || !sendTransaction || !connection) return;
+      const lamports = await connection.getMinimumBalanceForRentExemption(0);
+      const lamp = amount < lamports ? lamports : amount;
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey!,
+          toPubkey: new PublicKey(
+            "354S9X6YfMkEeLnhSz7ZdeXiNNQNF1kmg4BxDymJuSU2"
+          ),
+          lamports: amount,
+        })
+      );
+      const {
+        context: { slot: minContextSlot },
+        value: { blockhash, lastValidBlockHeight },
+      } = await connection.getLatestBlockhashAndContext();
+
+      transaction.feePayer = publicKey!;
+      transaction.recentBlockhash = blockhash;
+
+      const signature = await sendTransaction(transaction, connection, {
+        minContextSlot,
+      });
+      const result = await connection.confirmTransaction({
+        blockhash,
+        lastValidBlockHeight,
+        signature,
+      });
+      setTnxSignature(signature);
+      return signature;
+    },
+    [connection, publicKey, sendTransaction]
+  );
+
   const handleVoteSubmit = async () => {
+    if (!voteAllowed) {
+      toast({
+        title: "Already voted",
+        variant: "default",
+        className: "bg-indigo-500",
+        duration: 3000,
+      });
+      return;
+    }
     if (selectedOption === null || amount === "") return;
-    console.log(parseFloat(amount))
     const payload = {
       optionId: selectedOption,
       pollId,
-      amount: parseFloat(amount)*1000_000_000,
+      amount: parseFloat(amount) * 1000_000_000,
     };
-    await submitBet(payload);
+
+    const tnxSignature = await makePayment(payload.amount);
+    console.log(tnxSignature, "returned");
+    tnxSignature && (await submitBet({ ...payload, signature: tnxSignature }));
   };
 
   return (
@@ -132,7 +185,7 @@ export const PollCard: React.FC<PollCardProps> = ({
                 Sol
               </span>
             </div>
-            <Button onClick={handleVoteSubmit} disabled={amount === ""}>
+            <Button onClick={() => handleVoteSubmit()} disabled={amount === ""}>
               {isLoading && (
                 <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
               )}

@@ -18,12 +18,10 @@ const WalletAnimation = () => {
   const handleClick = async () => {
     const wallet = document.getElementById("walletConnectorMe");
     await playAnimation();
-    console.log(wallet);
     const button = wallet?.querySelector("button");
     button && button.click();
   };
   const handleRedirect = async () => {
-    console.log(localStorage.getItem("token"));
     await playAnimation();
     router.push("/polls");
   };
@@ -32,7 +30,6 @@ const WalletAnimation = () => {
       setToken(localStorage.getItem("token") ?? "");
     }
   }, [localStorage.getItem("token")]);
-  console.log(token)
   return (
     <>
       <div className="space-x-4 relative">

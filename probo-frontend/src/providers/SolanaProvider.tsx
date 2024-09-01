@@ -20,7 +20,6 @@ const Wallet = ({ children }: { children: React.ReactNode }) => {
 
   // You can also provide a custom RPC endpoint.
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
-
   const wallets = useMemo(
     () => [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
