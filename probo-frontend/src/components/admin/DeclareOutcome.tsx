@@ -80,7 +80,7 @@ const DeclareOutcome: React.FC = () => {
       </CardHeader>
       <CardContent>
         {getPollsLoading ? (
-          <Loader2 className="mx-auto" />
+          <Loader2 className="mx-auto animate-spin" />
         ) : (
           polls
             .filter(
@@ -138,6 +138,7 @@ const DeclareOutcome: React.FC = () => {
             ))
         )}
         {polls &&
+          !getPollsLoading &&
           polls.filter(
             (poll) =>
               poll.outcome?.type === "NOT_DECLARED" &&
