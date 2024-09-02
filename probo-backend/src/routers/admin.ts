@@ -53,11 +53,13 @@ router.post(
     // }
     try {
       const parsedBody = PollPayloadSchema.parse(req.body);
-      const { title, image, options, expiry, outcome } = parsedBody;
+      const { title, image, options, expiry, outcome, subtitle } = parsedBody;
+      console.log(parsedBody);
       const createdPoll = await prismaClient.polls.create({
         data: {
           title: title,
           image: image,
+          subtitle: subtitle,
           expiry: new Date(expiry),
           outcome: outcome,
           admin_id: req.adminId,
@@ -108,8 +110,8 @@ router.patch(
           message: `Poll with id ${pollId} not found`,
         });
       }
-
-      if (hasPollExpired(currentPoll.expiry)) {
+      //@ts-ignore
+      if (currentPoll.outcome?.type === "DECLARED") {
         return res.status(400).json({
           message: "Poll has already expired",
         });
@@ -145,21 +147,28 @@ router.patch(
   }
 );
 
-router.get("/transfer-balance/:pollId", adminAuthMiddleware, async (req, res) => {
-  const { pollId } = req.params;
+router.post("/transfer-balance", adminAuthMiddleware, async (req, res) => {
+  console.log(req.body);
+  const { pollId } = req.body;
+
+  if (!pollId) {
+    return res.status(400).json({
+      message: "Poll Id is required",
+    });
+  }
   try {
     const payoutResults = await prismaClient.$transaction(async (prisma) => {
       const poll = await prisma.polls.findUnique({
         where: { id: parseInt(pollId) },
         include: { poll_options: true, submissions: true },
       });
-      if (!poll || !hasPollExpired(poll.expiry)) {
+      if (!poll) {
         console.log(poll);
-        throw new Error("Poll has not expired yet or does not exist");
+        throw new Error("Poll not found");
       }
-      if(poll.balanceCalculated) {
-        res.json({message: "Balance already calculated for Users"})
-        return
+      if (poll.balanceCalculated) {
+        res.json({ message: "Balance already calculated for Users" });
+        return;
       }
 
       const totalBetsOnPoll = poll.total_bets;
@@ -188,12 +197,15 @@ router.get("/transfer-balance/:pollId", adminAuthMiddleware, async (req, res) =>
           (userBetAmount / totalBetsOnWinningOption) * amountAvailableForPayout;
         return { userId: submission.user_id, payout };
       });
-   
+
       await Promise.all(
         payouts.map(({ userId, payout }) =>
           prisma.balance.updateMany({
             where: { user_id: userId },
-            data: { amount: { increment: payout },pending_amount: { increment: payout } },
+            data: {
+              amount: { increment: payout },
+              pending_amount: { increment: payout },
+            },
           })
         )
       );
@@ -205,7 +217,7 @@ router.get("/transfer-balance/:pollId", adminAuthMiddleware, async (req, res) =>
         },
       });
 
-      return payouts
+      return payouts;
     });
 
     return res.status(200).json(payoutResults);
@@ -213,5 +225,37 @@ router.get("/transfer-balance/:pollId", adminAuthMiddleware, async (req, res) =>
     return handleError(error, res);
   }
 });
+
+router.get(
+  "/get-polls",
+  adminAuthMiddleware,
+  async (req: AdminAuthenticatedRequest, res) => {
+    if (!req.adminId) return;
+    const polls = await prismaClient.polls.findMany({
+      include: {
+        poll_options: true,
+        _count: { select: { submissions: true } },
+      },
+    });
+    const pollsResponse = polls.map((poll) => {
+      return {
+        id: poll.id,
+        title: poll.title,
+        image: poll.image,
+        expiry: poll.expiry,
+        subtitle: poll.subtitle,
+        outcome: poll.outcome,
+        totalVotes: poll._count.submissions,
+        potValue: poll.total_bets,
+        options: poll.poll_options.map((option) => ({
+          title: option.title,
+          id: option.id,
+          prob: option.dynamic_price,
+        })),
+      };
+    });
+    res.json(pollsResponse);
+  }
+);
 
 export default router;

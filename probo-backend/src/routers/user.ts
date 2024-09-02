@@ -26,7 +26,8 @@ const router = Router();
 
 const prismaClient = new PrismaClient();
 const connection = new Connection("https://api.devnet.solana.com");
-const PARENTWALLET = "354S9X6YfMkEeLnhSz7ZdeXiNNQNF1kmg4BxDymJuSU2";
+const PARENTWALLET = process.env.PARENTWALLET_ADMIN ?? "";
+console.log(PARENTWALLET);
 
 router.post("/signup", async (req, res) => {
   //zod validation
@@ -356,9 +357,11 @@ router.get(
       return {
         id: poll.id,
         title: poll.title,
+        subtitle: poll.subtitle,
         image: poll.image,
         expiry: poll.expiry,
         outcome: poll.outcome,
+        pot: poll.total_bets,
         totalVotes: poll._count.submissions,
         options: poll.poll_options.map((option) => ({
           title: option.title,

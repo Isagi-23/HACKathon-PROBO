@@ -37,13 +37,14 @@ model Balance {
   amount         Float @default(0.0)
   user_id        Int   @unique
   user           User  @relation(fields: [user_id], references: [id])
-  locked_amount  Float @default(0.0)
-  pending_amount Float @default(0.0)
+  locked_amount  Float @default(0)
+  pending_amount Float @default(0)
 }
 
 model Polls {
   id                Int           @id @default(autoincrement())
   title             String
+  subtitle          String?
   admin_id          Int
   image             String?
   poll_options      PollsOption[]
@@ -84,7 +85,7 @@ model Payout {
   id        Int          @id @default(autoincrement())
   userId    Int
   user      User         @relation(fields: [userId], references: [id])
-  amount    Int
+  amount    Float        @default(0.0)
   status    PayoutStatus
   signature String
 }
