@@ -20,10 +20,10 @@ import { useRouter } from "next/navigation";
 import { decodeToken } from "@/lib/utils";
 
 export default function AdminLogin() {
-  const [showAlert, setShowAlert] = useState(false); 
+  const [showAlert, setShowAlert] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const { mutate: login ,isLoading} = useMutate(adminLogin, {
+  const { mutate: login, isLoading } = useMutate(adminLogin, {
     onSuccess: (data) => {
       toast({
         title: "Login Successful",
@@ -107,12 +107,11 @@ export default function AdminLogin() {
         )}
       </CardContent>
       <CardFooter>
-        <p className="px-8 text-center text-sm text-muted-foreground">
-          Don't have an account?{" "}
-          <Button variant={"link"} onClick={handleAlert}>
-            Sign up
-          </Button>
-        </p>
+        <Button variant={"link"} onClick={handleAlert}>
+          <p className="px-8 text-center text-sm text-muted-foreground">
+            Don t have an account? Sign up
+          </p>
+        </Button>
       </CardFooter>
     </Card>
   );

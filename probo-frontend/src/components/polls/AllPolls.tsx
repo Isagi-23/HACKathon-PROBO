@@ -10,6 +10,10 @@ import PollLoader from "./PollLoader";
 import { decodeToken } from "@/lib/utils";
 
 export default function AllPolls() {
+  const [isClient,setIsClient]=useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  },[])
   const [allPolls, setAllPolls] = useState([]);
   const { data, refetch, isLoading } = useQuery(fetchAllPolls, {
     onSuccess: (data: any) => {
@@ -20,7 +24,7 @@ export default function AllPolls() {
         title: poll.title,
         subtitle: poll.subtitle,
         trader: poll.totalVotes,
-        pot:poll.pot,
+        pot: poll.pot,
         yesValue: calculateYesValue(poll.options),
         noValue: calculateNoValue(poll.options),
         options: poll.options,
@@ -28,7 +32,7 @@ export default function AllPolls() {
       }));
       setAllPolls(mappedPolls);
     },
-    enabled: localStorage.getItem("token") ? true : false,
+    enabled: isClient && localStorage.getItem("token") ? true : false,
   });
   const calculateExpiresIn = (expiry: string) => {
     const expiryDate = new Date(expiry);
@@ -66,7 +70,7 @@ export default function AllPolls() {
   };
   useEffect(() => {
     if (localStorage.getItem("token")) refetch();
-  }, [localStorage.getItem("token")]);
+  }, [isClient]);
 
   return (
     <div className="min-w-full md:min-w-[900px]">

@@ -30,7 +30,7 @@ const WalletAnimation = () => {
     if (localStorage.getItem("token")) {
       setToken(localStorage.getItem("token") ?? "");
     }
-  }, [localStorage.getItem("token")]);
+  }, );
 
   const handleAdminLogin = () => {
     if (!isAdmin && token) {

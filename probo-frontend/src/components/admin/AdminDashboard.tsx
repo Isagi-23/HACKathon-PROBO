@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CreatePoll from "./CreatePoll";
 import AdminAllPolls from "./AdminAllPolls";
@@ -25,7 +25,11 @@ const adminTabs = [
 ];
 
 export default function AdminDashboard() {
-  const token = localStorage.getItem("token");
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  const token = isClient && localStorage.getItem("token");
 
   return (
     <div className="container mx-auto p-4">

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { format, set } from "date-fns";
+import { format } from "date-fns";
 import { Button } from "../ui/button";
 import useQuery from "@/lib/helperHooks.ts/useQuery";
 import { getPolls, updateBalances, updatePoll } from "@/services/admin";
@@ -9,9 +9,14 @@ import useMutate from "@/lib/helperHooks.ts/useMutate";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
-interface DeclarePoll {}
-const DeclareOutcome = () => {
+interface PollOption {
+  id: number;
+  title: string;
+}
+
+const DeclareOutcome: React.FC = () => {
   const { toast } = useToast();
+
   const {
     data,
     isLoading: getPollsLoading,
@@ -22,8 +27,9 @@ const DeclareOutcome = () => {
       setPolls(data?.data);
     },
   });
-  const [polls, setPolls] = useState<Poll[] | []>([]);
-  const [pollOption, setPollOption] = useState(null);
+
+  const [polls, setPolls] = useState<Poll[]>([]);
+  const [pollOption, setPollOption] = useState<number | null>(null);
 
   const { mutate: updatepoll, isLoading: updatePollLoading } = useMutate(
     updatePoll,
@@ -42,6 +48,7 @@ const DeclareOutcome = () => {
       },
     }
   );
+
   const {
     mutate: initiatedBalanceCalculation,
     isLoading: balanceCalculationLoading,
@@ -104,24 +111,27 @@ const DeclareOutcome = () => {
                     </p>
                   </div>
                   <div className="mt-2">
-                    {poll.options.map((option) => (
-                      <Button
-                        key={option.id}
-                        variant="ghost"
-                        className={`mr-2 ${
-                          option.title === "Yes"
-                            ? "bg-emerald-500 text-white"
-                            : "bg-red-500 text-white"
-                        }  text-white`}
-                        onClick={() => handleUpdatePoll(poll.id, option.id)}
-                      >
-                        {option.title}
-                        {pollOption === option.id &&
-                          balanceCalculationLoading && (
-                            <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                          )}
-                      </Button>
-                    ))}
+                    {
+                      //@ts-ignore
+                      poll.options.map((option: PollOption) => (
+                        <Button
+                          key={option.id}
+                          variant="ghost"
+                          className={`mr-2 ${
+                            option.title === "Yes"
+                              ? "bg-emerald-500 text-white"
+                              : "bg-red-500 text-white"
+                          }`}
+                          onClick={() => handleUpdatePoll(poll.id, option.id)}
+                        >
+                          {option.title}
+                          {pollOption === option.id &&
+                            balanceCalculationLoading && (
+                              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                            )}
+                        </Button>
+                      ))
+                    }
                   </div>
                 </div>
               </div>
