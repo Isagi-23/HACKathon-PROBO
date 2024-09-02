@@ -7,6 +7,7 @@ import { fetchAllPolls } from "@/services/polls";
 import { Button } from "../ui/button";
 import { SmileIcon } from "lucide-react";
 import PollLoader from "./PollLoader";
+import { decodeToken } from "@/lib/utils";
 
 export default function AllPolls() {
   const [allPolls, setAllPolls] = useState([]);
@@ -19,6 +20,7 @@ export default function AllPolls() {
         title: poll.title,
         subtitle: poll.subtitle,
         trader: poll.totalVotes,
+        pot:poll.pot,
         yesValue: calculateYesValue(poll.options),
         noValue: calculateNoValue(poll.options),
         options: poll.options,
@@ -26,6 +28,7 @@ export default function AllPolls() {
       }));
       setAllPolls(mappedPolls);
     },
+    enabled: localStorage.getItem("token") ? true : false,
   });
   const calculateExpiresIn = (expiry: string) => {
     const expiryDate = new Date(expiry);
@@ -62,8 +65,8 @@ export default function AllPolls() {
     return noOption ? noOption.prob : 0.5; // Customize calculation as needed
   };
   useEffect(() => {
-    refetch();
-  }, []);
+    if (localStorage.getItem("token")) refetch();
+  }, [localStorage.getItem("token")]);
 
   return (
     <div className="min-w-full md:min-w-[900px]">
@@ -93,10 +96,13 @@ export default function AllPolls() {
                   title={poll.title}
                   subtitle={poll.subtitle}
                   options={poll.options}
+                  trader={poll.trader}
+                  pot={poll.pot}
                   onReadMore={() =>
                     console.log(`Read more clicked for poll ${index}`)
                   }
                   voteAllowed={poll.voteAllowed}
+                  refetch={refetch}
                 />
               ))}
             </div>

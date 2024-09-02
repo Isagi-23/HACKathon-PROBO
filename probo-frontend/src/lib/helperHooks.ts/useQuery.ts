@@ -44,9 +44,10 @@ const useQuery = <T>(
   const [reload, setReload] = useState(0);
 
   const refetch = () => setReload((prev) => prev + 1);
-
+console.log(enabled)
   useEffect(() => {
     const fetchData = async () => {
+      console.log("called using useQuery", enabled);
       setIsLoading(true);
       reload > 0 && setIsRefetching(true);
       setIsError(false);
@@ -79,6 +80,7 @@ const useQuery = <T>(
       }
     };
     if (enabled) {
+      console.log("gere", enabled);
       fetchData();
     }
   }, [reload, enabled]);

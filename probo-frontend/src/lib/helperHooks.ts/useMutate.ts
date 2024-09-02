@@ -47,7 +47,8 @@ const useMutate = <T, P = any>(
           title:
             (err?.response?.data?.message as string) ||
             (err.message as string) ||
-            (err.response?.message as string),
+            (err.response?.message as string)||
+            (err.response?.data?.error as string),
           variant: "destructive",
         });
       }

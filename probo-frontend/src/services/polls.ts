@@ -1,4 +1,8 @@
 import fetchApi from "@/configs/APIConfig";
+
+export const signup= async(payload:any) => {
+  return fetchApi.post("/user/signup", payload)
+}
 export const fetchAllPolls = async () => {
   return fetchApi.get("/user/all-polls");
 };

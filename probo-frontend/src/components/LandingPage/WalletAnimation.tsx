@@ -4,6 +4,7 @@ import { Button } from "../ui/button";
 import Lottie from "lottie-react";
 import animation from "@public/wallet/walletLoading1.json";
 import { useRouter } from "next/navigation";
+import { decodeToken } from "@/lib/utils";
 
 const WalletAnimation = () => {
   const [showAnimation, setShowAnimation] = useState(false);
@@ -30,15 +31,24 @@ const WalletAnimation = () => {
       setToken(localStorage.getItem("token") ?? "");
     }
   }, [localStorage.getItem("token")]);
+
+  const handleAdminLogin = () => {
+    if (!isAdmin && token) {
+    } else router.push("/admin");
+  };
+  const isAdmin = decodeToken(token);
   return (
     <>
       <div className="space-x-4 relative">
         <Button
-          onClick={localStorage.getItem("token") ? handleRedirect : handleClick}
+          onClick={!isAdmin && token ? handleRedirect : handleClick}
+          disabled={isAdmin as boolean}
         >
           Get Started
         </Button>
-        <Button variant="outline">Learn More</Button>
+        <Button variant="outline" onClick={handleAdminLogin}>
+          {!isAdmin && token ? "Learn More" : "ADMIN LOGIN"}
+        </Button>
       </div>
       <div className="absolute bottom-48">
         {showAnimation && <Lottie animationData={animation} loop={true} />}

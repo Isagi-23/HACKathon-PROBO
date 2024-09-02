@@ -70,3 +70,17 @@
 html {
   scroll-behavior: smooth;
 }
+
+.asterisk {
+  position: relative;
+  margin-left: 10px;
+
+}
+
+.asterisk::before {
+  content: "*";
+  top: 0;
+  left: -10px;
+  position: absolute;
+  @apply text-red-500
+}

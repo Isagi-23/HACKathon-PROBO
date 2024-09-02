@@ -8,7 +8,13 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, Info } from "lucide-react";
+import {
+  ChartColumnStacked,
+  Clock,
+  CoinsIcon,
+  HandCoins,
+  Info,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import useMutate from "@/lib/helperHooks.ts/useMutate";
 import { vote } from "@/services/polls";
@@ -32,6 +38,9 @@ interface PollCardProps {
   onReadMore: () => void;
   pollId: number;
   voteAllowed: boolean;
+  trader: number;
+  pot: number;
+  refetch: any;
 }
 
 export const PollCard: React.FC<PollCardProps> = ({
@@ -43,6 +52,9 @@ export const PollCard: React.FC<PollCardProps> = ({
   options,
   pollId,
   voteAllowed,
+  trader,
+  pot,
+  refetch,
 }) => {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [amount, setAmount] = useState<string>("");
@@ -60,6 +72,7 @@ export const PollCard: React.FC<PollCardProps> = ({
       });
       setSelectedOption(null);
       setAmount("");
+      refetch();
     },
     onError: (error: any) => {
       toast({
@@ -75,15 +88,14 @@ export const PollCard: React.FC<PollCardProps> = ({
 
   const makePayment = useCallback(
     async (amount: number) => {
+      console.log(amount)
       if (!publicKey || !sendTransaction || !connection) return;
       const lamports = await connection.getMinimumBalanceForRentExemption(0);
       const lamp = amount < lamports ? lamports : amount;
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey!,
-          toPubkey: new PublicKey(
-            "354S9X6YfMkEeLnhSz7ZdeXiNNQNF1kmg4BxDymJuSU2"
-          ),
+          toPubkey: new PublicKey(process.env.NEXT_PUBLIC_ADMIN_WALLET!),
           lamports: amount,
         })
       );
@@ -110,6 +122,14 @@ export const PollCard: React.FC<PollCardProps> = ({
   );
 
   const handleVoteSubmit = async () => {
+    if (localStorage.getItem("token") === null) {
+      toast({
+        title: "Not logged in",
+        variant: "default",
+        className: "bg-red-500",
+        duration: 3000,
+      });
+    }
     if (!voteAllowed) {
       toast({
         title: "Already voted",
@@ -123,54 +143,68 @@ export const PollCard: React.FC<PollCardProps> = ({
     const payload = {
       optionId: selectedOption,
       pollId,
-      amount: parseFloat(amount) * 1000_000_000,
+      amount: (parseFloat(amount)) * 1000_000_000,
     };
 
     const tnxSignature = await makePayment(payload.amount);
     console.log(tnxSignature, "returned");
     tnxSignature && (await submitBet({ ...payload, signature: tnxSignature }));
   };
-
+  console.log(expiresIn.split(" ")?.[0]);
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="flex flex-row items-center justify-between text-sm text-muted-foreground">
         <div className="flex flex-row items-center space-x-2">
-          <Clock size={16} />
+          <Clock size={16} color="black" />
           <span>Expires in {expiresIn}</span>
         </div>
-        <div className="flex flex-row items-center space-x-2 mt-0">
-          <Clock size={16} />
-          <span>13123 trader</span>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-row items-center space-x-2 mt-0">
+            <ChartColumnStacked color="#b1bb25" size={18} />
+            <span>{trader} trader</span>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center space-x-4">
-          <div className="flex-shrink-0">
-            <img
-              src={icon}
-              alt="Poll Icon"
-              className="rounded-full w-16 h-16"
-            />
-          </div>
-          <div>
-            <h3 className="font-semibold">{title}</h3>
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+          {icon && (
+            <div className="flex-shrink-0">
+              <img
+                src={icon}
+                alt="Poll Icon"
+                className="rounded-full w-16 h-16"
+              />
+            </div>
+          )}
+          <div className="flex flex-col text-wrap overflow-hidden">
+            <h3 className="font-semibold"> {title}</h3>
+            <p className="text-sm text-muted-foreground text-wrap">
+              {subtitle}
+            </p>
           </div>
         </div>
         <div className="flex items-center space-x-1 text-sm">
           <TooltipProvider>
-            <Tooltip>
+            <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <Info size={16} className="cursor-pointer" />
               </TooltipTrigger>
               <TooltipContent side="top" align="center">
-                <p>this is general info regarding indicator</p>
+                <p>This is general info regarding indicator YES AND NO </p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <Button variant="link" className="p-0 h-auto text-sm text-gray-400" onClick={onReadMore}>
+          <Button
+            variant="link"
+            className="p-0 h-auto text-sm text-gray-400"
+            onClick={onReadMore}
+          >
             Read more
           </Button>
+          <div className="flex flex-row items-center space-x-2 mt-0 ml-auto">
+            <CoinsIcon color="#b1bb25" size={18} />
+            <span>POT: {pot / 1000_000_000} Sol </span>
+          </div>
         </div>
       </CardContent>
       <CardFooter className="flex flex-col space-y-4">
@@ -200,7 +234,10 @@ export const PollCard: React.FC<PollCardProps> = ({
                 Sol
               </span>
             </div>
-            <Button onClick={() => handleVoteSubmit()} disabled={amount === ""}>
+            <Button
+              onClick={() => handleVoteSubmit()}
+              disabled={amount === "" || expiresIn.split(" ")?.[0] === "0"}
+            >
               {isLoading && (
                 <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
               )}

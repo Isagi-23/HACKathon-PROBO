@@ -121,7 +121,7 @@ export default function Component() {
                     placeholder="Enter your email"
                     type="email"
                   />
-                  <Button type="submit">Subscribe</Button>
+                  <Button type="button">Subscribe</Button>
                 </form>
                 <p className="text-xs text-muted-foreground">
                   By signing up, you agree to our{" "}

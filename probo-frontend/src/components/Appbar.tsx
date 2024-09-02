@@ -1,19 +1,18 @@
 "use client";
-import { HandCoins, Signature, TrendingUp, Wallet } from "lucide-react";
+import { HandCoins, TrendingUp } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
-import {
-  WalletDisconnectButton,
-  WalletMultiButton,
-} from "@solana/wallet-adapter-react-ui";
 import axios from "axios";
 import WalletButton from "./WalletButtons";
 import { Button } from "./ui/button";
 import WalletModal from "./WalletModal";
 import { AvatarIcon } from "@radix-ui/react-icons";
 import useQuery from "@/lib/helperHooks.ts/useQuery";
-import { fetchWalletData } from "@/services/polls";
+import { fetchWalletData, signup } from "@/services/polls";
+import { decodeToken } from "@/lib/utils";
+import useMutate from "@/lib/helperHooks.ts/useMutate";
+import { toast } from "@/hooks/use-toast";
 
 const Appbar = () => {
   const { publicKey, signMessage } = useWallet();
@@ -25,29 +24,22 @@ const Appbar = () => {
     totalEarnings: 0,
   });
 
-  async function signAndSend() {
-    if (!publicKey || !signMessage || !window) {
-      console.log("first");
-      return;
-    }
-    if (localStorage.getItem("token")) return;
-    const message = new TextEncoder().encode(
-      process.env.NEXT_PUBLIC_MESSAGE ?? ""
-    );
-    const signature = await signMessage?.(message);
-    const response = await axios.post(
-      `${process.env.NEXT_PUBLIC_SERVER_URL}user/signup`,
-      {
-        signature,
-        address: publicKey?.toString(),
-      }
-    );
-
-    localStorage.setItem("token", response.data.token);
-    setToken(response.data.token);
-    setWalletData(response.data);
-  }
+  const { mutate: singup } = useMutate(signup, {
+    onSuccess(data) {
+      toast({
+        title: "Sign Up Successful",
+        description: "You have successfully logged in",
+        className: "bg-emerald-500",
+        duration: 3000,
+      });
+      localStorage.setItem("token", data?.data?.token);
+      setToken(data?.data?.token);
+      setWalletData(data?.data);
+    },
+  });
   console.log(walletData);
+  const isAdmin = decodeToken(token);
+  console.log(isAdmin);
   const { refetch } = useQuery(fetchWalletData, {
     onSuccess: (data) => {
       const fetchedData = {
@@ -57,11 +49,26 @@ const Appbar = () => {
       };
       setWalletData(fetchedData);
     },
-    enabled: !!token,
+    enabled: isAdmin ? false : true,
+    showToast: false,
   });
 
+  const handleLogin = async () => {
+    if (!publicKey || !signMessage || !window) {
+      console.log("first");
+      return;
+    }
+    const message = new TextEncoder().encode(
+      process.env.NEXT_PUBLIC_MESSAGE ?? ""
+    );
+    const signature = await signMessage?.(message);
+    const payload = { signature, address: publicKey?.toString() };
+    await singup(payload);
+  };
   useEffect(() => {
-    signAndSend();
+    if (publicKey) {
+      handleLogin();
+    }
   }, [publicKey]);
 
   useEffect(() => {
@@ -69,6 +76,7 @@ const Appbar = () => {
       setToken(localStorage.getItem("token") ?? "");
     }
   }, [localStorage.getItem("token")]);
+
   return (
     <header className="px-4 lg:px-6 h-14 flex items-center">
       <Link className="flex items-center justify-center" href="/">
@@ -84,7 +92,7 @@ const Appbar = () => {
         </Link>
         <Link
           className="text-sm font-medium hover:underline underline-offset-4"
-          href="#how-it-works"
+          href="/#how-it-works"
         >
           How It Works
         </Link>
@@ -103,7 +111,7 @@ const Appbar = () => {
       </nav>
 
       <div className="ml-auto flex gap-2">
-        {token && (
+        {!isAdmin && token && (
           <div className="flex justify-center items-center  ">
             <Button
               onClick={() => {
@@ -115,6 +123,7 @@ const Appbar = () => {
               Open Wallet
             </Button>
             <WalletModal
+              refetch={refetch}
               isOpen={isWalletModalOpen}
               onClose={() => setIsWalletModalOpen(false)}
               walletInfo={walletData}
@@ -122,7 +131,11 @@ const Appbar = () => {
             />
           </div>
         )}
-        <WalletButton publicKey={publicKey?.toString()} setToken={setToken} />
+        <WalletButton
+          publicKey={publicKey?.toString()}
+          setToken={setToken}
+          token={token}
+        />
       </div>
     </header>
   );

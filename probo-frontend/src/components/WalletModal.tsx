@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import useMutate from "@/lib/helperHooks.ts/useMutate";
 import useQuery from "@/lib/helperHooks.ts/useQuery";
 import { initiatePayoutUser } from "@/services/polls";
+import { useToast } from "@/hooks/use-toast";
 
 interface WalletData {
   totalInWallet: number;
@@ -32,13 +33,16 @@ export default function WalletModal({
   onClose,
   walletInfo,
   token,
+  refetch,
 }: {
   isOpen: boolean;
   onClose: () => void;
   walletInfo: any;
   token: string;
+  refetch: any;
 }) {
   console.log(walletInfo);
+  const { toast } = useToast();
   const [walletData, setWalletData] = useState<WalletData>(walletInfo);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [withdrawalComplete, setWithdrawalComplete] = useState(false);
@@ -49,7 +53,14 @@ export default function WalletModal({
     error,
   } = useMutate(initiatePayoutUser, {
     onSuccess: (data) => {
-      console.log(data);
+      toast({
+        title: "Success",
+        description: data?.data?.signature,
+        variant: "default",
+        className: "bg-emerald-500",
+        duration: 5000,
+      });
+      refetch();
     },
   });
   const handleWithdraw = async () => {
