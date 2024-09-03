@@ -107,13 +107,18 @@ const CreatePoll = () => {
   console.log(cld.getConfig().cloud?.cloudName);
 
   const handleFormSubmit = async (values: any) => {
+    const updatedDate = new Date(values.expiry);
+    updatedDate.setDate(updatedDate.getDate() + 1);
+    const isoString = updatedDate.toISOString();
+    
+    console.log(isoString);
     let imageUrl = values.image;
 
     // Check if the image is a file, if so, upload to Cloudinary
     if (values.image instanceof File) {
       const formData = new FormData();
       formData.append("file", values.image);
-      formData.append("upload_preset", "bwzenc8n"); // Replace with your upload preset
+      formData.append("upload_preset", "bwzenc8n"); 
 
       const response = await fetch(
         `https://api.cloudinary.com/v1_1/${
@@ -132,7 +137,7 @@ const CreatePoll = () => {
       title: values.title,
       subtitle: values.subtitle,
       options: OPTIONS,
-      expiry: values.expiry.toISOString(),
+      expiry: isoString,
       outcome: OUTCOME,
       image: imageUrl,
     };
